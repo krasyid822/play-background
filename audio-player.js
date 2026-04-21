@@ -9,10 +9,22 @@
     const STORAGE_KEY = 'refleksi-ambient-audio-state';
     const SOURCE_CONFIG_KEY = 'refleksi-ambient-audio-source-config';
     const PLAYBACK_SETTINGS_KEY = 'refleksi-ambient-audio-playback-settings';
+    const PLAYBACK_SNAPSHOT_KEY = 'refleksi-ambient-audio-playback-snapshot';
+    const SNAPSHOT_INTERVAL_MS = 15000;
+    const RECOVERY_CHECK_INTERVAL_MS = 10000;
+    const RECOVERY_BASE_DELAY_MS = 2000;
+    const RECOVERY_MAX_DELAY_MS = 30000;
     let player = null;
     let playerReady = false;
     let apiLoading = false;
     let pendingPlay = false;
+    let pendingRestoreSnapshot = null;
+    let snapshotIntervalId = null;
+    let recoveryIntervalId = null;
+    let recoveryTimerId = null;
+    let recoveryAttemptCount = 0;
+    let watchdogPreviousTime = null;
+    let watchdogStuckCount = 0;
     let trackListRenderToken = 0;
     let sourceConfig = getInitialSourceConfig();
     let playbackSettings = getInitialPlaybackSettings();
@@ -221,6 +233,237 @@
 
     function savePlaybackSettings(settings) {
         localStorage.setItem(PLAYBACK_SETTINGS_KEY, JSON.stringify(settings));
+    }
+
+    function readStoredPlaybackSnapshot() {
+        try {
+            const raw = localStorage.getItem(PLAYBACK_SNAPSHOT_KEY);
+            if (!raw) {
+                return null;
+            }
+
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') {
+                return null;
+            }
+
+            return parsed;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function persistPlaybackSnapshot() {
+        if (!player || !playerReady) {
+            return;
+        }
+
+        const playerState = typeof player.getPlayerState === 'function'
+            ? player.getPlayerState()
+            : -1;
+        const isPlaying = playerState === window.YT.PlayerState.PLAYING;
+        const currentTime = typeof player.getCurrentTime === 'function'
+            ? Number(player.getCurrentTime()) || 0
+            : 0;
+        const playlistIndex = sourceConfig.mode === 'playlist' && typeof player.getPlaylistIndex === 'function'
+            ? Number(player.getPlaylistIndex()) || 0
+            : 0;
+
+        const snapshot = {
+            mode: sourceConfig.mode,
+            sourceId: sourceConfig.id,
+            currentTime: Math.max(0, currentTime),
+            playlistIndex: Math.max(0, playlistIndex),
+            isPlaying: isPlaying,
+            updatedAt: Date.now()
+        };
+
+        try {
+            localStorage.setItem(PLAYBACK_SNAPSHOT_KEY, JSON.stringify(snapshot));
+        } catch (error) {
+            // ignore
+        }
+    }
+
+    function clearSnapshotInterval() {
+        if (snapshotIntervalId) {
+            window.clearInterval(snapshotIntervalId);
+            snapshotIntervalId = null;
+        }
+    }
+
+    function startSnapshotInterval() {
+        clearSnapshotInterval();
+        snapshotIntervalId = window.setInterval(function () {
+            persistPlaybackSnapshot();
+        }, SNAPSHOT_INTERVAL_MS);
+    }
+
+    function shouldMaintainPlayback() {
+        return localStorage.getItem(STORAGE_KEY) === 'playing';
+    }
+
+    function clearRecoveryTimer() {
+        if (recoveryTimerId) {
+            window.clearTimeout(recoveryTimerId);
+            recoveryTimerId = null;
+        }
+    }
+
+    function resetRecoveryState() {
+        clearRecoveryTimer();
+        recoveryAttemptCount = 0;
+    }
+
+    function attemptPlaybackRecovery() {
+        recoveryTimerId = null;
+
+        if (!shouldMaintainPlayback()) {
+            resetRecoveryState();
+            return;
+        }
+
+        if (!player || !playerReady) {
+            playAudio();
+            return;
+        }
+
+        let currentState = -1;
+        try {
+            if (typeof player.getPlayerState === 'function') {
+                currentState = player.getPlayerState();
+            }
+        } catch (error) {
+            currentState = -1;
+        }
+
+        if (currentState === window.YT.PlayerState.PLAYING) {
+            resetRecoveryState();
+            return;
+        }
+
+        try {
+            player.playVideo();
+            recoveryAttemptCount += 1;
+        } catch (error) {
+            recoveryAttemptCount += 1;
+        }
+
+        const nextDelay = Math.min(
+            RECOVERY_BASE_DELAY_MS * Math.max(1, recoveryAttemptCount),
+            RECOVERY_MAX_DELAY_MS
+        );
+
+        clearRecoveryTimer();
+        recoveryTimerId = window.setTimeout(function () {
+            attemptPlaybackRecovery();
+        }, nextDelay);
+    }
+
+    function schedulePlaybackRecovery(delayMs) {
+        if (!shouldMaintainPlayback()) {
+            resetRecoveryState();
+            return;
+        }
+
+        clearRecoveryTimer();
+        recoveryTimerId = window.setTimeout(function () {
+            attemptPlaybackRecovery();
+        }, Math.max(0, Number(delayMs) || 0));
+    }
+
+    function clearRecoveryInterval() {
+        if (recoveryIntervalId) {
+            window.clearInterval(recoveryIntervalId);
+            recoveryIntervalId = null;
+        }
+    }
+
+    function startRecoveryWatchdog() {
+        clearRecoveryInterval();
+        recoveryIntervalId = window.setInterval(function () {
+            if (!player || !playerReady) {
+                return;
+            }
+
+            if (!shouldMaintainPlayback()) {
+                watchdogPreviousTime = null;
+                watchdogStuckCount = 0;
+                resetRecoveryState();
+                return;
+            }
+
+            let state = -1;
+            let currentTime = 0;
+
+            try {
+                state = typeof player.getPlayerState === 'function' ? player.getPlayerState() : -1;
+                currentTime = typeof player.getCurrentTime === 'function' ? Number(player.getCurrentTime()) || 0 : 0;
+            } catch (error) {
+                schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
+                return;
+            }
+
+            if (state === window.YT.PlayerState.PLAYING) {
+                if (watchdogPreviousTime !== null && Math.abs(currentTime - watchdogPreviousTime) < 0.1) {
+                    watchdogStuckCount += 1;
+                    if (watchdogStuckCount >= 2) {
+                        schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
+                    }
+                } else {
+                    watchdogStuckCount = 0;
+                }
+
+                watchdogPreviousTime = currentTime;
+                resetRecoveryState();
+                return;
+            }
+
+            watchdogPreviousTime = null;
+            watchdogStuckCount = 0;
+
+            if (state === window.YT.PlayerState.BUFFERING) {
+                return;
+            }
+
+            schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
+        }, RECOVERY_CHECK_INTERVAL_MS);
+    }
+
+    function applyRestoreSnapshot(snapshot) {
+        if (!snapshot || !player || !playerReady) {
+            return;
+        }
+
+        if (snapshot.mode !== sourceConfig.mode || snapshot.sourceId !== sourceConfig.id) {
+            return;
+        }
+
+        const safeTime = Math.max(0, Number(snapshot.currentTime) || 0);
+        const shouldPlay = !!snapshot.isPlaying;
+
+        if (sourceConfig.mode === 'playlist') {
+            const index = Math.max(0, Number(snapshot.playlistIndex) || 0);
+            try {
+                if (typeof player.playVideoAt === 'function') {
+                    player.playVideoAt(index);
+                }
+            } catch (error) {
+                // ignore
+            }
+        }
+
+        try {
+            player.seekTo(safeTime, true);
+        } catch (error) {
+            // ignore
+        }
+
+        if (shouldPlay) {
+            playAudio();
+        } else {
+            pauseAudio();
+        }
     }
 
     function getInitialPlaybackSettings() {
@@ -481,10 +724,16 @@
             events: {
                 onReady: function () {
                     playerReady = true;
+                    startSnapshotInterval();
+                    startRecoveryWatchdog();
                     applyPlaybackSettingsToPlayer();
                     populateTrackListFromPlayer();
                     const videoData = player.getVideoData ? player.getVideoData() : null;
                     updateMarqueeTitle(videoData && videoData.title ? videoData.title : '');
+                    if (pendingRestoreSnapshot) {
+                        applyRestoreSnapshot(pendingRestoreSnapshot);
+                        pendingRestoreSnapshot = null;
+                    }
                     const savedState = localStorage.getItem(STORAGE_KEY) || 'paused';
                     if (pendingPlay || savedState === 'playing') {
                         pendingPlay = false;
@@ -501,7 +750,11 @@
                     }
                     if (event.data === window.YT.PlayerState.PLAYING) {
                         setPlayingState(true);
+                        persistPlaybackSnapshot();
+                        resetRecoveryState();
                     } else if (event.data === window.YT.PlayerState.ENDED) {
+                        persistPlaybackSnapshot();
+                        resetRecoveryState();
                         if (playbackSettings.repeatMode === 'one' && player && playerReady) {
                             try {
                                 player.seekTo(0, true);
@@ -514,6 +767,14 @@
                         setPlayingState(false);
                     } else if (event.data === window.YT.PlayerState.PAUSED) {
                         setPlayingState(false);
+                        persistPlaybackSnapshot();
+                        if (shouldMaintainPlayback()) {
+                            schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
+                        }
+                    } else if (event.data === window.YT.PlayerState.CUED || event.data === window.YT.PlayerState.UNSTARTED) {
+                        if (shouldMaintainPlayback()) {
+                            schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
+                        }
                     }
                 }
             }
@@ -542,6 +803,12 @@
         } catch (error) {
             // ignore
         }
+
+        clearSnapshotInterval();
+        clearRecoveryInterval();
+        resetRecoveryState();
+        watchdogPreviousTime = null;
+        watchdogStuckCount = 0;
 
         player = null;
         playerReady = false;
@@ -615,8 +882,10 @@
             try {
                 player.playVideo();
                 setPlayingState(true);
+                schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
             } catch (error) {
                 pendingPlay = true;
+                schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
             }
         } else {
             pendingPlay = true;
@@ -632,6 +901,7 @@
             }
         }
         setPlayingState(false);
+        persistPlaybackSnapshot();
     }
 
     const button = host.querySelector('.ambient-audio-toggle');
@@ -708,9 +978,31 @@
 
         const savedState = localStorage.getItem(STORAGE_KEY) || 'paused';
         setPlayingState(savedState === 'playing');
+
+        const snapshot = readStoredPlaybackSnapshot();
+        if (snapshot && snapshot.mode === sourceConfig.mode && snapshot.sourceId === sourceConfig.id) {
+            pendingRestoreSnapshot = snapshot;
+            if (snapshot.isPlaying) {
+                pendingPlay = true;
+            }
+        }
+
         if (savedState === 'playing') {
             playAudio();
         }
+
+        window.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible' && shouldMaintainPlayback()) {
+                schedulePlaybackRecovery(800);
+            }
+            if (document.visibilityState === 'hidden') {
+                persistPlaybackSnapshot();
+            }
+        });
+
+        window.addEventListener('beforeunload', function () {
+            persistPlaybackSnapshot();
+        });
     }
 
     if (document.readyState === 'loading') {
