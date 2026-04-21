@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refleksi Ambient Audio</title>
+    <style>
+        :root {
+            --bg-a: #f3f4f6;
+            --bg-b: #dbeafe;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #334155;
+            --accent: #1d4ed8;
+            --accent-2: #0f172a;
+            --border: rgba(15, 23, 42, 0.14);
+            --ok: #166534;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 20% 18%, rgba(37, 99, 235, 0.22), transparent 40%),
+                radial-gradient(circle at 80% 74%, rgba(15, 23, 42, 0.16), transparent 36%),
+                linear-gradient(120deg, var(--bg-a), var(--bg-b));
+            padding: 28px 16px 100px;
+        }
+
+        .container {
+            width: min(760px, 100%);
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+            padding: 20px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 1.45rem;
+        }
+
+        .subtitle {
+            margin: 0 0 16px;
+            color: var(--muted);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 0.92rem;
+        }
+
+        select,
+        input {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.95rem;
+            color: var(--text);
+            background: #fff;
+        }
+
+        .hint {
+            margin-top: 6px;
+            font-size: 0.84rem;
+            color: var(--muted);
+        }
+
+        .actions {
+            margin-top: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 999px;
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 0.92rem;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            color: #fff;
+            background: linear-gradient(135deg, var(--accent-2), var(--accent));
+        }
+
+        .btn-light {
+            color: var(--text);
+            background: #e2e8f0;
+        }
+
+        .status {
+            margin-top: 12px;
+            min-height: 22px;
+            font-size: 0.88rem;
+            color: var(--ok);
+            font-weight: 600;
+        }
+
+        @media (max-width: 680px) {
+            .card {
+                padding: 16px;
+                border-radius: 14px;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <section class="card">
+            <h1>Pengaturan YouTube Background Audio</h1>
+            <p class="subtitle">Pilih mode audio, isi ID, lalu simpan. Widget audio di kanan bawah akan otomatis memakai konfigurasi terbaru.</p>
+
+            <form id="audio-config-form" class="grid">
+                <div>
+                    <label for="source-mode">Mode sumber</label>
+                    <select id="source-mode" name="mode">
+                        <option value="playlist">Playlist</option>
+                        <option value="video">Video tunggal</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="source-id">ID YouTube</label>
+                    <input
+                        id="source-id"
+                        name="id"
+                        type="text"
+                        placeholder="Contoh: PLxxxx (playlist) atau dQw4w9WgXcQ (video)"
+                        required
+                    >
+                    <p id="source-hint" class="hint">Masukkan Playlist ID (misal: PL...).</p>
+                </div>
+
+                <div class="actions">
+                    <button class="btn-primary" type="submit">Simpan Konfigurasi</button>
+                </div>
+            </form>
+
+            <p id="status-text" class="status" aria-live="polite"></p>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            const DEFAULTS = {
+                playlist: 'PLrAXtmRdnEQy6nuRPGh_C7pRFQWtxL5UI',
+                video: 'clXNZw73AAE'
+            };
+            const STORAGE_KEY = 'refleksi-ambient-audio-source-config';
+
+            const form = document.getElementById('audio-config-form');
+            const modeField = document.getElementById('source-mode');
+            const idField = document.getElementById('source-id');
+            const hint = document.getElementById('source-hint');
+            const status = document.getElementById('status-text');
+
+            function updateHint(mode) {
+                if (mode === 'video') {
+                    hint.textContent = 'Masukkan Video ID (contoh: dQw4w9WgXcQ).';
+                } else {
+                    hint.textContent = 'Masukkan Playlist ID (biasanya diawali PL...).';
+                }
+            }
+
+            function loadConfig() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (!raw) {
+                        return { mode: 'playlist', id: DEFAULTS.playlist };
+                    }
+
+                    const parsed = JSON.parse(raw);
+                    const mode = parsed && parsed.mode === 'video' ? 'video' : 'playlist';
+                    const id = parsed && typeof parsed.id === 'string' && parsed.id.trim()
+                        ? parsed.id.trim()
+                        : (mode === 'video' ? DEFAULTS.video : DEFAULTS.playlist);
+
+                    return { mode: mode, id: id };
+                } catch (error) {
+                    return { mode: 'playlist', id: DEFAULTS.playlist };
+                }
+            }
+
+            function saveConfig(config) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+                window.dispatchEvent(new CustomEvent('refleksi:ambient-audio-config-updated', {
+                    detail: config
+                }));
+            }
+
+            function fillForm(config) {
+                modeField.value = config.mode;
+                idField.value = config.id;
+                updateHint(config.mode);
+            }
+
+            modeField.addEventListener('change', function () {
+                updateHint(modeField.value);
+                if (!idField.value.trim()) {
+                    idField.value = modeField.value === 'video' ? DEFAULTS.video : DEFAULTS.playlist;
+                }
+            });
+
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const mode = modeField.value === 'video' ? 'video' : 'playlist';
+                const value = idField.value.trim();
+
+                if (!value) {
+                    status.textContent = 'ID tidak boleh kosong.';
+                    return;
+                }
+
+                const config = { mode: mode, id: value };
+                saveConfig(config);
+                status.textContent = 'Konfigurasi tersimpan dan diterapkan ke widget audio.';
+            });
+
+            fillForm(loadConfig());
+        })();
+    </script>
+
+    <script src="./audio-player.js"></script>
+</body>
+</html>
