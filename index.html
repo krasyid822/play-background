@@ -3,7 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Refleksi Ambient Audio</title>
+    <title>Refleksi Ambient Audio | Widget YouTube Background PWA</title>
+    <meta name="description" content="Widget YouTube background audio bergaya retro dengan mode playlist, repeat, shuffle, dan dukungan PWA untuk pengalaman yang lebih cepat dan stabil.">
+    <meta name="robots" content="index,follow">
+    <meta name="theme-color" content="#17120d">
+    <meta name="color-scheme" content="light dark">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Refleksi Ambient Audio">
+    <meta name="application-name" content="Refleksi Ambient Audio">
+    <link rel="canonical" href="./">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./icon-192.svg" type="image/svg+xml" sizes="192x192">
+    <link rel="icon" href="./icon-512.svg" type="image/svg+xml" sizes="512x512">
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="shortcut icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./icon-192.svg">
+    <meta property="og:title" content="Refleksi Ambient Audio">
+    <meta property="og:description" content="Widget audio YouTube retro dengan playlist, repeat, shuffle, dan mode PWA untuk pengalaman yang lebih responsif.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="./">
+    <meta property="og:image" content="./favicon.svg">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Refleksi Ambient Audio">
+    <meta name="twitter:description" content="Widget audio YouTube retro dengan mode playlist, repeat, shuffle, dan dukungan PWA.">
+    <meta name="twitter:image" content="./favicon.svg">
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "Refleksi Ambient Audio",
+            "description": "Widget YouTube background audio bergaya retro dengan playlist, repeat, shuffle, dan dukungan PWA.",
+            "applicationCategory": "MusicApplication",
+            "operatingSystem": "Web",
+            "inLanguage": "id",
+            "url": "./",
+            "isAccessibleForFree": true
+        }
+    </script>
     <style>
         :root {
             --bg-a: #f3f4f6;
@@ -80,6 +117,17 @@
             background: #fff;
         }
 
+        select option {
+            background: #ffffff;
+            color: #0f172a;
+        }
+
+        select option:checked,
+        select option:hover {
+            background: #dbeafe;
+            color: #0f172a;
+        }
+
         .hint {
             margin-top: 6px;
             font-size: 0.84rem;
@@ -110,6 +158,16 @@
         .btn-light {
             color: var(--text);
             background: #e2e8f0;
+        }
+
+        .btn-install {
+            color: #052b28;
+            background: linear-gradient(135deg, #7ef0d8, #f4b23a);
+            border: 1px solid rgba(15, 23, 42, 0.18);
+        }
+
+        .btn-install:hover {
+            filter: saturate(1.04);
         }
 
         .status {
@@ -161,9 +219,11 @@
 
                 <div class="actions">
                     <button class="btn-primary" type="submit">Simpan Konfigurasi</button>
+                    <button id="install-pwa-button" class="btn-light btn-install" type="button" hidden>Instal Aplikasi</button>
                 </div>
             </form>
 
+            <p id="pwa-status" class="hint">Instal aplikasi untuk membuka widget sebagai PWA dan akses yang lebih cepat.</p>
             <p id="status-text" class="status" aria-live="polite"></p>
         </section>
     </main>
@@ -171,8 +231,8 @@
     <script>
         (function () {
             const DEFAULTS = {
-                playlist: 'PLrAXtmRdnEQy6nuRPGh_C7pRFQWtxL5UI',
-                video: 'clXNZw73AAE'
+                playlist: 'PLdktW6Lk1MUYZTkC23UIZa6Ao3EKjrrMn',
+                video: ''
             };
             const STORAGE_KEY = 'refleksi-ambient-audio-source-config';
 
@@ -180,7 +240,22 @@
             const modeField = document.getElementById('source-mode');
             const idField = document.getElementById('source-id');
             const hint = document.getElementById('source-hint');
+            const installButton = document.getElementById('install-pwa-button');
+            const pwaStatus = document.getElementById('pwa-status');
             const status = document.getElementById('status-text');
+            let deferredInstallPrompt = null;
+
+            function isStandaloneApp() {
+                return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            }
+
+            function updateInstallButton() {
+                if (!installButton) {
+                    return;
+                }
+
+                installButton.hidden = !deferredInstallPrompt || isStandaloneApp();
+            }
 
             function updateHint(mode) {
                 if (mode === 'video') {
@@ -222,6 +297,47 @@
                 updateHint(config.mode);
             }
 
+            if (installButton) {
+                installButton.addEventListener('click', function () {
+                    if (!deferredInstallPrompt) {
+                        status.textContent = 'Prompt instal belum tersedia.';
+                        return;
+                    }
+
+                    deferredInstallPrompt.prompt();
+                    deferredInstallPrompt.userChoice.then(function (choice) {
+                        if (choice && choice.outcome === 'accepted') {
+                            status.textContent = 'Aplikasi berhasil diinstal.';
+                        } else {
+                            status.textContent = 'Instalasi dibatalkan.';
+                        }
+
+                        deferredInstallPrompt = null;
+                        updateInstallButton();
+                    });
+                });
+            }
+
+            window.addEventListener('beforeinstallprompt', function (event) {
+                event.preventDefault();
+                deferredInstallPrompt = event;
+                updateInstallButton();
+            });
+
+            window.addEventListener('appinstalled', function () {
+                deferredInstallPrompt = null;
+                updateInstallButton();
+                status.textContent = 'Aplikasi berhasil diinstal ke perangkat.';
+            });
+
+            updateInstallButton();
+
+            if (isStandaloneApp()) {
+                if (pwaStatus) {
+                    pwaStatus.textContent = 'Aplikasi sudah berjalan dalam mode terpasang.';
+                }
+            }
+
             modeField.addEventListener('change', function () {
                 updateHint(modeField.value);
                 if (!idField.value.trim()) {
@@ -249,5 +365,14 @@
     </script>
 
     <script src="./audio-player.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('./sw.js').catch(function () {
+                    // ignore
+                });
+            });
+        }
+    </script>
 </body>
 </html>

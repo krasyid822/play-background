@@ -34,6 +34,16 @@
     const host = document.createElement('div');
     host.id = 'ambient-audio-widget';
     host.innerHTML = `
+        <div class="ambient-audio-topbar" aria-hidden="true">
+            <div class="ambient-audio-topbar-brand">
+                <span class="ambient-audio-topbar-title">RETRO AMBIENT DECK</span>
+                <span class="ambient-audio-topbar-subtitle">Background audio console</span>
+            </div>
+            <div class="ambient-audio-topbar-status">
+                <span class="ambient-audio-status-dot"></span>
+                <span>ON AIR</span>
+            </div>
+        </div>
         <div class="ambient-audio-main-row">
             <button type="button" class="ambient-audio-toggle" aria-pressed="false">▶ Putar Audio</button>
             <div class="ambient-audio-marquee" aria-label="Judul audio berjalan">
@@ -57,6 +67,16 @@
     const style = document.createElement('style');
     style.textContent = `
         #ambient-audio-widget {
+            --retro-bg: #17120d;
+            --retro-panel: #221913;
+            --retro-panel-soft: rgba(255, 229, 186, 0.08);
+            --retro-border: #e6a43a;
+            --retro-border-soft: rgba(230, 164, 58, 0.38);
+            --retro-accent: #f4b23a;
+            --retro-accent-2: #48d6c5;
+            --retro-text: #f8f0db;
+            --retro-muted: #d8c6a0;
+            --retro-shadow: rgba(0, 0, 0, 0.45);
             position: fixed;
             right: 18px;
             bottom: 18px;
@@ -64,83 +84,269 @@
             display: flex;
             flex-direction: column;
             align-items: stretch;
+            gap: 10px;
+            padding: 12px;
+            border: 3px solid var(--retro-border);
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at top left, rgba(244, 178, 58, 0.14), transparent 30%),
+                radial-gradient(circle at bottom right, rgba(72, 214, 197, 0.1), transparent 28%),
+                linear-gradient(145deg, #281c15, #17120d 65%, #120e0a);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+                0 0 0 3px rgba(0, 0, 0, 0.35) inset,
+                0 20px 48px var(--retro-shadow),
+                0 0 24px rgba(244, 178, 58, 0.18);
+            color: var(--retro-text);
+            width: min(520px, calc(100vw - 24px));
+            overflow: hidden;
+            isolation: isolate;
+            font-family: 'Courier New', 'Lucida Console', monospace;
+        }
+
+        #ambient-audio-widget::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.06) 0,
+                rgba(255, 255, 255, 0.06) 1px,
+                transparent 1px,
+                transparent 4px
+            );
+            opacity: 0.14;
+            pointer-events: none;
+        }
+
+        #ambient-audio-widget::after {
+            content: '';
+            position: absolute;
+            inset: 8px;
+            border: 1px solid rgba(255, 229, 186, 0.08);
+            border-radius: 14px;
+            pointer-events: none;
+        }
+
+        .ambient-audio-topbar {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 2px 4px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+        }
+
+        .ambient-audio-topbar-brand {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .ambient-audio-topbar-title {
+            font: 900 0.84rem/1 'Courier New', monospace;
+            color: var(--retro-accent);
+            text-shadow: 0 0 10px rgba(244, 178, 58, 0.28);
+            white-space: nowrap;
+        }
+
+        .ambient-audio-topbar-subtitle {
+            font: 600 0.58rem/1.2 'Courier New', monospace;
+            color: var(--retro-muted);
+            letter-spacing: 0.22em;
+            white-space: nowrap;
+        }
+
+        .ambient-audio-topbar-status {
+            display: inline-flex;
+            align-items: center;
             gap: 8px;
-            padding: 10px;
-            border: 2px solid rgba(15, 23, 42, 0.18);
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
-            color: #0f172a;
-            width: min(460px, calc(100vw - 24px));
+            padding: 6px 10px;
+            border: 1px solid var(--retro-border-soft);
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.24);
+            color: var(--retro-text);
+            font: 700 0.62rem/1 'Courier New', monospace;
+            letter-spacing: 0.18em;
+            white-space: nowrap;
+        }
+
+        .ambient-audio-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: radial-gradient(circle, #7ef0d8 0, #2dd4bf 55%, #0f766e 100%);
+            box-shadow:
+                0 0 0 4px rgba(45, 212, 191, 0.12),
+                0 0 14px rgba(45, 212, 191, 0.8);
+            animation: ambient-led-pulse 2.2s ease-in-out infinite;
+        }
+
+        @keyframes ambient-led-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.85; }
+            50% { transform: scale(1.16); opacity: 1; }
         }
 
         .ambient-audio-main-row {
+            position: relative;
+            z-index: 1;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         .ambient-audio-toggle {
-            border: 0;
-            border-radius: 999px;
-            padding: 10px 16px;
-            background: linear-gradient(135deg, #0f172a, #1d4ed8);
-            color: #ffffff;
-            font: 600 0.95rem 'Space Grotesk', sans-serif;
+            flex: 0 0 auto;
+            border: 2px solid var(--retro-border);
+            border-bottom-width: 4px;
+            border-radius: 12px;
+            padding: 12px 16px;
+            background: linear-gradient(180deg, #ffcf77 0%, #f4b23a 45%, #c77a14 100%);
+            color: #261700;
+            font: 900 0.82rem/1 'Courier New', monospace;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
             cursor: pointer;
-            box-shadow: none;
+            box-shadow:
+                0 6px 0 #7d4d0f,
+                0 16px 24px rgba(0, 0, 0, 0.34);
             margin-top: 0;
             width: auto;
-            min-width: 0;
+            min-width: 140px;
         }
 
         .ambient-audio-toggle:hover {
             transform: translateY(-1px);
+            filter: saturate(1.05);
+        }
+
+        .ambient-audio-toggle:active {
+            transform: translateY(2px);
+            box-shadow:
+                0 3px 0 #7d4d0f,
+                0 10px 18px rgba(0, 0, 0, 0.3);
+        }
+
+        .ambient-audio-toggle[aria-pressed='true'] {
+            background: linear-gradient(180deg, #7ef0d8 0%, #48d6c5 45%, #0f766e 100%);
+            color: #052b28;
+            box-shadow:
+                0 6px 0 #0b4f48,
+                0 16px 24px rgba(0, 0, 0, 0.34);
         }
 
         .ambient-audio-marquee {
+            position: relative;
+            z-index: 1;
             flex: 1;
             min-width: 0;
             overflow: hidden;
-            border-radius: 10px;
-            border: 1px solid rgba(15, 23, 42, 0.2);
-            background: rgba(255, 255, 255, 0.75);
-            padding: 3px 0;
+            border-radius: 12px;
+            border: 2px solid rgba(230, 164, 58, 0.6);
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.22));
+            padding: 8px 0;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .ambient-audio-marquee::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(72, 214, 197, 0.1), transparent);
+            opacity: 0.42;
+            pointer-events: none;
         }
 
         .ambient-audio-controls {
+            position: relative;
+            z-index: 1;
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto auto auto;
-            gap: 6px;
+            gap: 8px;
+            padding: 4px;
+            border: 1px solid rgba(230, 164, 58, 0.22);
+            border-radius: 14px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.16));
         }
 
         .ambient-audio-track-list {
-            border: 1px solid rgba(15, 23, 42, 0.22);
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.85);
-            color: #0f172a;
-            font: 600 0.75rem 'Space Grotesk', sans-serif;
-            padding: 7px 8px;
+            border: 1px solid rgba(230, 164, 58, 0.45);
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(25, 18, 12, 0.98), rgba(15, 10, 8, 0.96));
+            color: #f9eecf;
+            font: 700 0.75rem 'Courier New', monospace;
+            letter-spacing: 0.04em;
+            padding: 9px 10px;
             min-width: 0;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+
+        .ambient-audio-track-list option {
+            background: #f9eecf;
+            color: #17120d;
+        }
+
+        .ambient-audio-track-list option:checked,
+        .ambient-audio-track-list option:hover {
+            background: #f4b23a;
+            color: #261700;
+        }
+
+        .ambient-audio-track-list:disabled {
+            opacity: 0.75;
+            color: #d8c6a0;
         }
 
         .ambient-audio-mini-btn {
-            border: 1px solid rgba(15, 23, 42, 0.2);
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.84);
-            color: #0f172a;
-            font: 700 0.68rem 'Courier New', monospace;
-            letter-spacing: 0.02em;
-            padding: 7px 9px;
+            border: 1px solid rgba(230, 164, 58, 0.4);
+            border-bottom-width: 3px;
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(55, 40, 27, 0.98), rgba(31, 22, 15, 0.98));
+            color: #f8f0db;
+            font: 700 0.64rem/1 'Courier New', monospace;
+            letter-spacing: 0.14em;
+            padding: 8px 10px;
+            text-transform: uppercase;
             white-space: nowrap;
             cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.38);
+        }
+
+        .ambient-audio-mini-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            color: #c7b58b;
+            border-color: rgba(230, 164, 58, 0.16);
+            box-shadow: none;
+            transform: none;
+        }
+
+        .ambient-audio-mini-btn:hover {
+            transform: translateY(-1px);
+            border-color: rgba(72, 214, 197, 0.55);
+            color: #7ef0d8;
+        }
+
+        .ambient-audio-mini-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.38);
         }
 
         .ambient-audio-mini-btn.is-active {
-            background: linear-gradient(135deg, #0f172a, #1d4ed8);
-            color: #ffffff;
+            background: linear-gradient(180deg, #f4b23a, #c77a14);
+            color: #261700;
             border-color: transparent;
+            box-shadow: 0 4px 0 #7d4d0f;
+        }
+
+        .ambient-audio-repeat-one.is-active {
+            background: linear-gradient(180deg, #7ef0d8, #48d6c5);
+            color: #052b28;
+            box-shadow: 0 4px 0 #0b4f48;
         }
 
         .ambient-audio-track {
@@ -154,11 +360,11 @@
         .ambient-audio-text {
             flex: 0 0 auto;
             padding-right: 38px;
-            font: 700 0.76rem 'Courier New', monospace;
-            letter-spacing: 0.08em;
+            font: 700 0.76rem/1 'Courier New', monospace;
+            letter-spacing: 0.16em;
             text-transform: uppercase;
-            color: #0f172a;
-            text-shadow: 1px 1px 0 rgba(30, 64, 175, 0.25);
+            color: #fff3cc;
+            text-shadow: 0 0 8px rgba(244, 178, 58, 0.28), 1px 1px 0 rgba(0, 0, 0, 0.6);
             white-space: nowrap;
         }
 
@@ -174,6 +380,72 @@
             width: 1px;
             height: 1px;
             overflow: hidden;
+        }
+
+        @media (max-width: 680px) {
+            #ambient-audio-widget {
+                left: 12px;
+                right: 12px;
+                bottom: 12px;
+                width: auto;
+                padding: 8px;
+                border-radius: 16px;
+                gap: 8px;
+            }
+
+            .ambient-audio-topbar {
+                gap: 8px;
+                padding: 1px 2px 0;
+            }
+
+            .ambient-audio-topbar-title {
+                font-size: 0.72rem;
+                letter-spacing: 0.12em;
+            }
+
+            .ambient-audio-topbar-subtitle {
+                font-size: 0.5rem;
+                letter-spacing: 0.18em;
+            }
+
+            .ambient-audio-topbar-status {
+                padding: 5px 8px;
+                font-size: 0.55rem;
+                letter-spacing: 0.14em;
+            }
+
+            .ambient-audio-main-row {
+                gap: 8px;
+            }
+
+            .ambient-audio-toggle {
+                min-width: 112px;
+                padding: 10px 12px;
+                font-size: 0.72rem;
+                letter-spacing: 0.12em;
+            }
+
+            .ambient-audio-controls {
+                grid-template-columns: minmax(0, 1fr) auto auto auto;
+                gap: 6px;
+            }
+
+            .ambient-audio-track-list {
+                padding: 8px 9px;
+                font-size: 0.68rem;
+            }
+
+            .ambient-audio-mini-btn {
+                padding: 7px 8px;
+                font-size: 0.58rem;
+                letter-spacing: 0.12em;
+            }
+
+            .ambient-audio-text {
+                font-size: 0.68rem;
+                letter-spacing: 0.14em;
+                padding-right: 30px;
+            }
         }
 
     `;
@@ -214,7 +486,7 @@
     function normalizePlaybackSettings(settings) {
         const repeatMode = settings && settings.repeatMode === 'one' ? 'one' : 'all';
         return {
-            shuffle: !!(settings && settings.shuffle),
+            shuffle: repeatMode === 'one' ? false : !!(settings && settings.shuffle),
             repeatMode: repeatMode
         };
     }
@@ -323,6 +595,12 @@
             return;
         }
 
+        if (navigator.onLine === false) {
+            setOfflineBannerVisible(true);
+            resetRecoveryState();
+            return;
+        }
+
         if (!player || !playerReady) {
             playAudio();
             return;
@@ -363,6 +641,12 @@
     function schedulePlaybackRecovery(delayMs) {
         if (!shouldMaintainPlayback()) {
             resetRecoveryState();
+            return;
+        }
+
+        if (navigator.onLine === false) {
+            setOfflineBannerVisible(true);
+            clearRecoveryTimer();
             return;
         }
 
@@ -428,6 +712,127 @@
 
             schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
         }, RECOVERY_CHECK_INTERVAL_MS);
+    }
+
+    function getPlaylistIdsFromPlayer() {
+        if (sourceConfig.mode === 'video') {
+            return [sourceConfig.id];
+        }
+
+        if (!player || !playerReady || typeof player.getPlaylist !== 'function') {
+            return [];
+        }
+
+        const playlistIds = player.getPlaylist();
+        return Array.isArray(playlistIds) ? playlistIds : [];
+    }
+
+    function getCurrentPlaylistIndex() {
+        if (sourceConfig.mode === 'video') {
+            return 0;
+        }
+
+        if (!player || !playerReady || typeof player.getPlaylistIndex !== 'function') {
+            return 0;
+        }
+
+        const currentIndex = Number(player.getPlaylistIndex());
+        return Number.isFinite(currentIndex) && currentIndex >= 0 ? currentIndex : 0;
+    }
+
+    function getCurrentVideoId() {
+        if (!player || !playerReady || typeof player.getVideoData !== 'function') {
+            return '';
+        }
+
+        const videoData = player.getVideoData();
+        return videoData && typeof videoData.video_id === 'string' ? videoData.video_id : '';
+    }
+
+    function restartCurrentTrack() {
+        if (!player || !playerReady) {
+            return false;
+        }
+
+        try {
+            if (sourceConfig.mode === 'video') {
+                if (typeof player.loadVideoById === 'function') {
+                    player.loadVideoById(sourceConfig.id, 0);
+                    return true;
+                }
+
+                if (typeof player.seekTo === 'function') {
+                    player.seekTo(0, true);
+                }
+                player.playVideo();
+                return true;
+            }
+
+            const currentVideoId = getCurrentVideoId();
+            if (currentVideoId && typeof player.loadVideoById === 'function') {
+                player.loadVideoById(currentVideoId, 0);
+                return true;
+            }
+
+            const playlistIds = getPlaylistIdsFromPlayer();
+            const currentIndex = getCurrentPlaylistIndex();
+
+            if (playlistIds.length && typeof player.loadPlaylist === 'function') {
+                player.loadPlaylist(playlistIds, currentIndex);
+                return true;
+            }
+
+            if (typeof player.playVideoAt === 'function') {
+                player.playVideoAt(currentIndex);
+                return true;
+            }
+        } catch (error) {
+            // ignore
+        }
+
+        return false;
+    }
+
+    function playNextTrack() {
+        if (!player || !playerReady) {
+            return false;
+        }
+
+        if (sourceConfig.mode === 'video') {
+            return restartCurrentTrack();
+        }
+
+        const playlistIds = getPlaylistIdsFromPlayer();
+        if (!playlistIds.length) {
+            return restartCurrentTrack();
+        }
+
+        const currentIndex = getCurrentPlaylistIndex();
+        const nextIndex = (currentIndex + 1) % playlistIds.length;
+
+        try {
+            if (typeof player.loadPlaylist === 'function') {
+                player.loadPlaylist(playlistIds, nextIndex);
+                return true;
+            }
+
+            if (typeof player.playVideoAt === 'function') {
+                player.playVideoAt(nextIndex);
+                return true;
+            }
+        } catch (error) {
+            // ignore
+        }
+
+        return restartCurrentTrack();
+    }
+
+    function handleRepeatEnded() {
+        if (playbackSettings.repeatMode === 'one') {
+            return restartCurrentTrack();
+        }
+
+        return playNextTrack();
     }
 
     function applyRestoreSnapshot(snapshot) {
@@ -497,11 +902,40 @@
         });
     }
 
-    function setPlayingState(isPlaying) {
+    function setOfflineBannerVisible(isVisible) {
+        const banner = host.querySelector('.ambient-audio-offline');
+        if (!banner) {
+            return;
+        }
+
+        banner.hidden = !isVisible;
+        banner.setAttribute('aria-hidden', String(!isVisible));
+    }
+
+    function syncConnectionState() {
+        const offline = navigator.onLine === false;
+        setOfflineBannerVisible(offline);
+
+        if (offline) {
+            clearRecoveryTimer();
+            recoveryAttemptCount = 0;
+            return;
+        }
+
+        if (pendingPlay || shouldMaintainPlayback()) {
+            schedulePlaybackRecovery(300);
+        }
+    }
+
+    function setPlayingState(isPlaying, options) {
+        const persist = !options || options.persist !== false;
         const button = host.querySelector('.ambient-audio-toggle');
         button.textContent = isPlaying ? '⏸ Jeda Audio' : '▶ Putar Audio';
         button.setAttribute('aria-pressed', String(isPlaying));
-        localStorage.setItem(STORAGE_KEY, isPlaying ? 'playing' : 'paused');
+
+        if (persist) {
+            localStorage.setItem(STORAGE_KEY, isPlaying ? 'playing' : 'paused');
+        }
     }
 
     function renderTrackListPlaceholder(message) {
@@ -647,11 +1081,14 @@
         const shuffleButton = host.querySelector('.ambient-audio-shuffle');
         const repeatAllButton = host.querySelector('.ambient-audio-repeat-all');
         const repeatOneButton = host.querySelector('.ambient-audio-repeat-one');
+        const shuffleAllowed = playbackSettings.repeatMode !== 'one';
 
         if (shuffleButton) {
-            shuffleButton.textContent = playbackSettings.shuffle ? 'Acak: On' : 'Acak: Off';
-            shuffleButton.setAttribute('aria-pressed', String(playbackSettings.shuffle));
-            shuffleButton.classList.toggle('is-active', playbackSettings.shuffle);
+            shuffleButton.textContent = playbackSettings.shuffle && shuffleAllowed ? 'Acak: On' : 'Acak: Off';
+            shuffleButton.setAttribute('aria-pressed', String(playbackSettings.shuffle && shuffleAllowed));
+            shuffleButton.classList.toggle('is-active', playbackSettings.shuffle && shuffleAllowed);
+            shuffleButton.disabled = !shuffleAllowed;
+            shuffleButton.setAttribute('aria-disabled', String(!shuffleAllowed));
         }
 
         if (repeatAllButton) {
@@ -674,11 +1111,7 @@
 
         try {
             if (typeof player.setShuffle === 'function') {
-                player.setShuffle(playbackSettings.shuffle);
-            }
-
-            if (typeof player.setLoop === 'function') {
-                player.setLoop(playbackSettings.repeatMode === 'all');
+                player.setShuffle(playbackSettings.repeatMode === 'one' ? false : playbackSettings.shuffle);
             }
         } catch (error) {
             // ignore
@@ -686,7 +1119,7 @@
     }
 
     function setShuffle(enabled) {
-        playbackSettings.shuffle = !!enabled;
+        playbackSettings.shuffle = playbackSettings.repeatMode === 'one' ? false : !!enabled;
         savePlaybackSettings(playbackSettings);
         applyPlaybackSettingsToUi();
         applyPlaybackSettingsToPlayer();
@@ -695,9 +1128,13 @@
 
     function setRepeatMode(mode) {
         playbackSettings.repeatMode = mode === 'one' ? 'one' : 'all';
+        if (playbackSettings.repeatMode === 'one') {
+            playbackSettings.shuffle = false;
+        }
         savePlaybackSettings(playbackSettings);
         applyPlaybackSettingsToUi();
         applyPlaybackSettingsToPlayer();
+        populateTrackListFromPlayer();
     }
 
     function createPlayer() {
@@ -710,7 +1147,8 @@
             controls: 0,
             rel: 0,
             modestbranding: 1,
-            loop: 1,
+            origin: window.location.origin,
+            widget_referrer: window.location.href,
             playsinline: 1,
             iv_load_policy: 3,
             fs: 0,
@@ -720,6 +1158,7 @@
         const playerOptions = {
             height: '1',
             width: '1',
+            host: 'https://www.youtube-nocookie.com',
             playerVars: basePlayerVars,
             events: {
                 onReady: function () {
@@ -754,25 +1193,29 @@
                         resetRecoveryState();
                     } else if (event.data === window.YT.PlayerState.ENDED) {
                         persistPlaybackSnapshot();
-                        resetRecoveryState();
-                        if (playbackSettings.repeatMode === 'one' && player && playerReady) {
-                            try {
-                                player.seekTo(0, true);
-                                player.playVideo();
-                                return;
-                            } catch (error) {
-                                // ignore
-                            }
+                        if (handleRepeatEnded()) {
+                            setPlayingState(true, { persist: false });
+                            resetRecoveryState();
+                            return;
                         }
+                        if (shouldMaintainPlayback()) {
+                            setPlayingState(true, { persist: false });
+                            schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
+                            return;
+                        }
+                        resetRecoveryState();
                         setPlayingState(false);
                     } else if (event.data === window.YT.PlayerState.PAUSED) {
-                        setPlayingState(false);
                         persistPlaybackSnapshot();
                         if (shouldMaintainPlayback()) {
+                            setPlayingState(true, { persist: false });
                             schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
+                        } else {
+                            setPlayingState(false);
                         }
                     } else if (event.data === window.YT.PlayerState.CUED || event.data === window.YT.PlayerState.UNSTARTED) {
                         if (shouldMaintainPlayback()) {
+                            setPlayingState(true, { persist: false });
                             schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
                         }
                     }
@@ -782,7 +1225,6 @@
 
         if (sourceConfig.mode === 'video') {
             playerOptions.videoId = sourceConfig.id;
-            playerOptions.playerVars.playlist = sourceConfig.id;
         } else {
             playerOptions.playerVars.listType = 'playlist';
             playerOptions.playerVars.list = sourceConfig.id;
@@ -841,6 +1283,11 @@
     }
 
     function loadApi() {
+        if (navigator.onLine === false) {
+            setOfflineBannerVisible(true);
+            return;
+        }
+
         if (window.YT && window.YT.Player) {
             createPlayer();
             return;
@@ -860,6 +1307,13 @@
         script.src = 'https://www.youtube.com/iframe_api';
         script.async = true;
         script.dataset.ambientAudioApi = 'true';
+        script.onerror = function () {
+            apiLoading = false;
+            setOfflineBannerVisible(true);
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+        };
         document.head.appendChild(script);
 
         window.onYouTubeIframeAPIReady = function () {
@@ -868,6 +1322,13 @@
     }
 
     function playAudio() {
+        if (navigator.onLine === false) {
+            pendingPlay = true;
+            setPlayingState(true);
+            setOfflineBannerVisible(true);
+            return;
+        }
+
         loadApi();
         if (!window.YT || !window.YT.Player) {
             pendingPlay = true;
@@ -900,8 +1361,31 @@
                 // ignore
             }
         }
+        pendingPlay = false;
+        resetRecoveryState();
         setPlayingState(false);
         persistPlaybackSnapshot();
+    }
+
+    function isPlayerActuallyPlaying() {
+        if (!player || !playerReady || typeof player.getPlayerState !== 'function') {
+            return localStorage.getItem(STORAGE_KEY) === 'playing';
+        }
+
+        try {
+            const state = player.getPlayerState();
+            if (state === window.YT.PlayerState.PLAYING) {
+                return true;
+            }
+
+            if (state === window.YT.PlayerState.BUFFERING) {
+                return localStorage.getItem(STORAGE_KEY) === 'playing';
+            }
+        } catch (error) {
+            return localStorage.getItem(STORAGE_KEY) === 'playing';
+        }
+
+        return false;
     }
 
     const button = host.querySelector('.ambient-audio-toggle');
@@ -911,8 +1395,7 @@
     const repeatOneButton = host.querySelector('.ambient-audio-repeat-one');
 
     button.addEventListener('click', function () {
-        const isPlaying = localStorage.getItem(STORAGE_KEY) === 'playing';
-        if (isPlaying) {
+        if (isPlayerActuallyPlaying()) {
             pauseAudio();
         } else {
             playAudio();
@@ -931,8 +1414,7 @@
 
         if (sourceConfig.mode === 'video') {
             try {
-                player.seekTo(0, true);
-                player.playVideo();
+                restartCurrentTrack();
             } catch (error) {
                 // ignore
             }
@@ -990,6 +1472,10 @@
         if (savedState === 'playing') {
             playAudio();
         }
+
+        window.addEventListener('online', syncConnectionState);
+        window.addEventListener('offline', syncConnectionState);
+        syncConnectionState();
 
         window.addEventListener('visibilitychange', function () {
             if (document.visibilityState === 'visible' && shouldMaintainPlayback()) {
