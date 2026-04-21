@@ -3,55 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Refleksi Ambient Audio | Widget YouTube Background PWA</title>
-    <meta name="description" content="Widget YouTube background audio bergaya retro dengan mode playlist, repeat, shuffle, dan dukungan PWA untuk pengalaman yang lebih cepat dan stabil.">
-    <meta name="robots" content="index,follow">
-    <meta name="theme-color" content="#17120d">
-    <meta name="color-scheme" content="light dark">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Refleksi Ambient Audio">
-    <meta name="application-name" content="Refleksi Ambient Audio">
-    <link rel="canonical" href="./">
-    <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="icon" href="./icon-192.svg" type="image/svg+xml" sizes="192x192">
-    <link rel="icon" href="./icon-512.svg" type="image/svg+xml" sizes="512x512">
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-    <link rel="shortcut icon" href="./favicon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="./icon-192.svg">
-    <meta property="og:title" content="Refleksi Ambient Audio">
-    <meta property="og:description" content="Widget audio YouTube retro dengan playlist, repeat, shuffle, dan mode PWA untuk pengalaman yang lebih responsif.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="./">
-    <meta property="og:image" content="./favicon.svg">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Refleksi Ambient Audio">
-    <meta name="twitter:description" content="Widget audio YouTube retro dengan mode playlist, repeat, shuffle, dan dukungan PWA.">
-    <meta name="twitter:image" content="./favicon.svg">
-    <script type="application/ld+json">
-        {
-            "@context": "https://schema.org",
-            "@type": "WebApplication",
-            "name": "Refleksi Ambient Audio",
-            "description": "Widget YouTube background audio bergaya retro dengan playlist, repeat, shuffle, dan dukungan PWA.",
-            "applicationCategory": "MusicApplication",
-            "operatingSystem": "Web",
-            "inLanguage": "id",
-            "url": "./",
-            "isAccessibleForFree": true
-        }
-    </script>
+    <title>Refleksi Ambient Audio</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
         :root {
-            --bg-a: #f3f4f6;
-            --bg-b: #dbeafe;
-            --card: #ffffff;
-            --text: #0f172a;
-            --muted: #334155;
-            --accent: #1d4ed8;
-            --accent-2: #0f172a;
-            --border: rgba(15, 23, 42, 0.14);
-            --ok: #166534;
+            --bg-a: #26120a;
+            --bg-b: #0b1510;
+            --card: #1f130c;
+            --card-glow: #2f1c10;
+            --text: #ffe8b7;
+            --muted: #dfc58f;
+            --accent: #f59e0b;
+            --accent-2: #f97316;
+            --accent-soft: #fde68a;
+            --ok: #9bf2a8;
+            --border: #74411f;
+            --bevel-light: #a86a3f;
+            --bevel-dark: #140a06;
         }
 
         * {
@@ -61,13 +30,30 @@
         body {
             margin: 0;
             min-height: 100vh;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'VT323', 'Courier New', monospace;
             color: var(--text);
             background:
-                radial-gradient(circle at 20% 18%, rgba(37, 99, 235, 0.22), transparent 40%),
-                radial-gradient(circle at 80% 74%, rgba(15, 23, 42, 0.16), transparent 36%),
-                linear-gradient(120deg, var(--bg-a), var(--bg-b));
+                radial-gradient(circle at 15% 12%, rgba(249, 115, 22, 0.22), transparent 42%),
+                radial-gradient(circle at 80% 70%, rgba(253, 230, 138, 0.14), transparent 38%),
+                linear-gradient(130deg, var(--bg-a), var(--bg-b));
             padding: 28px 16px 100px;
+            letter-spacing: 0.03em;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(255, 255, 255, 0.04) 0,
+                rgba(255, 255, 255, 0.04) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            opacity: 0.35;
         }
 
         .container {
@@ -77,20 +63,51 @@
 
         .card {
             background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
-            padding: 20px;
+            border: 3px solid var(--border);
+            border-radius: 6px;
+            box-shadow:
+                inset 0 0 0 2px var(--bevel-light),
+                inset 0 0 0 5px var(--bevel-dark),
+                0 14px 0 rgba(0, 0, 0, 0.25),
+                0 24px 40px rgba(0, 0, 0, 0.45);
+            padding: 22px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.06), transparent 24%),
+                repeating-linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.03) 0,
+                    rgba(255, 255, 255, 0.03) 2px,
+                    transparent 2px,
+                    transparent 7px
+                );
+            pointer-events: none;
+            mix-blend-mode: screen;
+            opacity: 0.6;
         }
 
         h1 {
             margin: 0 0 8px;
-            font-size: 1.45rem;
+            font-size: 1rem;
+            font-family: 'Press Start 2P', 'Courier New', monospace;
+            line-height: 1.55;
+            color: var(--accent-soft);
+            text-shadow: 2px 2px 0 #2a1409;
+            text-transform: uppercase;
         }
 
         .subtitle {
             margin: 0 0 16px;
             color: var(--muted);
+            font-size: 1.6rem;
+            line-height: 1.2;
         }
 
         .grid {
@@ -102,35 +119,47 @@
         label {
             display: block;
             margin-bottom: 6px;
-            font-weight: 600;
-            font-size: 0.92rem;
+            font-weight: 400;
+            font-size: 1.45rem;
+            text-transform: uppercase;
+            color: var(--accent-soft);
         }
 
         select,
         input {
             width: 100%;
-            border: 1px solid var(--border);
-            border-radius: 10px;
+            border: 2px solid var(--bevel-light);
+            border-radius: 4px;
             padding: 10px 12px;
-            font-size: 0.95rem;
+            font-size: 1.35rem;
             color: var(--text);
-            background: #fff;
+            background: linear-gradient(180deg, #351f12, var(--card-glow));
+            box-shadow: inset 0 0 0 2px var(--bevel-dark);
+            font-family: 'VT323', 'Courier New', monospace;
+            letter-spacing: 0.03em;
+        }
+
+        select:focus,
+        input:focus {
+            outline: 0;
+            border-color: var(--accent);
+            box-shadow: inset 0 0 0 2px var(--bevel-dark), 0 0 0 2px rgba(245, 158, 11, 0.25);
         }
 
         select option {
-            background: #ffffff;
-            color: #0f172a;
+            background: #27160d;
+            color: #ffe8b7;
         }
 
         select option:checked,
         select option:hover {
-            background: #dbeafe;
-            color: #0f172a;
+            background: #4a2c18;
+            color: #fff2cc;
         }
 
         .hint {
             margin-top: 6px;
-            font-size: 0.84rem;
+            font-size: 1.2rem;
             color: var(--muted);
         }
 
@@ -142,50 +171,74 @@
         }
 
         button {
-            border: 0;
-            border-radius: 999px;
+            border: 2px solid var(--bevel-light);
+            border-radius: 4px;
             padding: 10px 16px;
             cursor: pointer;
-            font-size: 0.92rem;
-            font-weight: 600;
+            font-size: 1.15rem;
+            font-weight: 400;
+            text-transform: uppercase;
+            font-family: 'Press Start 2P', 'Courier New', monospace;
+            letter-spacing: 0.08em;
+            transition: transform 120ms ease, filter 120ms ease;
         }
 
         .btn-primary {
-            color: #fff;
-            background: linear-gradient(135deg, var(--accent-2), var(--accent));
+            color: #2b1208;
+            background: linear-gradient(180deg, #fcd34d, var(--accent));
+            box-shadow: 0 4px 0 #8b4f19;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.05);
+        }
+
+        .btn-primary:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #8b4f19;
         }
 
         .btn-light {
             color: var(--text);
-            background: #e2e8f0;
-        }
-
-        .btn-install {
-            color: #052b28;
-            background: linear-gradient(135deg, #7ef0d8, #f4b23a);
-            border: 1px solid rgba(15, 23, 42, 0.18);
-        }
-
-        .btn-install:hover {
-            filter: saturate(1.04);
+            background: linear-gradient(180deg, #4f311f, #382016);
         }
 
         .status {
             margin-top: 12px;
             min-height: 22px;
-            font-size: 0.88rem;
+            font-size: 1.4rem;
             color: var(--ok);
-            font-weight: 600;
+            font-weight: 400;
+            text-shadow: 0 0 8px rgba(155, 242, 168, 0.32);
         }
 
         @media (max-width: 680px) {
             .card {
                 padding: 16px;
-                border-radius: 14px;
+                border-radius: 4px;
             }
 
             h1 {
+                font-size: 0.82rem;
+            }
+
+            .subtitle {
+                font-size: 1.35rem;
+            }
+
+            label {
                 font-size: 1.2rem;
+            }
+
+            select,
+            input {
+                font-size: 1.2rem;
+            }
+
+            button {
+                font-size: 0.78rem;
+                width: 100%;
             }
         }
     </style>
@@ -219,11 +272,9 @@
 
                 <div class="actions">
                     <button class="btn-primary" type="submit">Simpan Konfigurasi</button>
-                    <button id="install-pwa-button" class="btn-light btn-install" type="button" hidden>Instal Aplikasi</button>
                 </div>
             </form>
 
-            <p id="pwa-status" class="hint">Instal aplikasi untuk membuka widget sebagai PWA dan akses yang lebih cepat.</p>
             <p id="status-text" class="status" aria-live="polite"></p>
         </section>
     </main>
@@ -240,22 +291,7 @@
             const modeField = document.getElementById('source-mode');
             const idField = document.getElementById('source-id');
             const hint = document.getElementById('source-hint');
-            const installButton = document.getElementById('install-pwa-button');
-            const pwaStatus = document.getElementById('pwa-status');
             const status = document.getElementById('status-text');
-            let deferredInstallPrompt = null;
-
-            function isStandaloneApp() {
-                return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-            }
-
-            function updateInstallButton() {
-                if (!installButton) {
-                    return;
-                }
-
-                installButton.hidden = !deferredInstallPrompt || isStandaloneApp();
-            }
 
             function updateHint(mode) {
                 if (mode === 'video') {
@@ -297,47 +333,6 @@
                 updateHint(config.mode);
             }
 
-            if (installButton) {
-                installButton.addEventListener('click', function () {
-                    if (!deferredInstallPrompt) {
-                        status.textContent = 'Prompt instal belum tersedia.';
-                        return;
-                    }
-
-                    deferredInstallPrompt.prompt();
-                    deferredInstallPrompt.userChoice.then(function (choice) {
-                        if (choice && choice.outcome === 'accepted') {
-                            status.textContent = 'Aplikasi berhasil diinstal.';
-                        } else {
-                            status.textContent = 'Instalasi dibatalkan.';
-                        }
-
-                        deferredInstallPrompt = null;
-                        updateInstallButton();
-                    });
-                });
-            }
-
-            window.addEventListener('beforeinstallprompt', function (event) {
-                event.preventDefault();
-                deferredInstallPrompt = event;
-                updateInstallButton();
-            });
-
-            window.addEventListener('appinstalled', function () {
-                deferredInstallPrompt = null;
-                updateInstallButton();
-                status.textContent = 'Aplikasi berhasil diinstal ke perangkat.';
-            });
-
-            updateInstallButton();
-
-            if (isStandaloneApp()) {
-                if (pwaStatus) {
-                    pwaStatus.textContent = 'Aplikasi sudah berjalan dalam mode terpasang.';
-                }
-            }
-
             modeField.addEventListener('change', function () {
                 updateHint(modeField.value);
                 if (!idField.value.trim()) {
@@ -365,14 +360,5 @@
     </script>
 
     <script src="./audio-player.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('./sw.js').catch(function () {
-                    // ignore
-                });
-            });
-        }
-    </script>
 </body>
 </html>
