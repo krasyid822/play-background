@@ -25,9 +25,6 @@
     let recoveryAttemptCount = 0;
     let watchdogPreviousTime = null;
     let watchdogStuckCount = 0;
-    let wakeLockSentinel = null;
-    let wakeLockRequestInFlight = false;
-    let wakeLockAutoAcquireEnabled = false;
     let trackListRenderToken = 0;
     let sourceConfig = getInitialSourceConfig();
     let playbackSettings = getInitialPlaybackSettings();
@@ -598,12 +595,6 @@
             return;
         }
 
-        if (navigator.onLine === false) {
-            setOfflineBannerVisible(true);
-            resetRecoveryState();
-            return;
-        }
-
         if (!player || !playerReady) {
             playAudio();
             return;
@@ -644,12 +635,6 @@
     function schedulePlaybackRecovery(delayMs) {
         if (!shouldMaintainPlayback()) {
             resetRecoveryState();
-            return;
-        }
-
-        if (navigator.onLine === false) {
-            setOfflineBannerVisible(true);
-            clearRecoveryTimer();
             return;
         }
 
@@ -903,102 +888,6 @@
         textNodes.forEach(function (node) {
             node.textContent = decorated;
         });
-    }
-
-    function releaseWakeLock() {
-        wakeLockAutoAcquireEnabled = false;
-
-        if (!wakeLockSentinel) {
-            wakeLockRequestInFlight = false;
-            return;
-        }
-
-        const sentinel = wakeLockSentinel;
-        wakeLockSentinel = null;
-        wakeLockRequestInFlight = false;
-
-        try {
-            const releaseResult = sentinel.release();
-            if (releaseResult && typeof releaseResult.catch === 'function') {
-                releaseResult.catch(function () {
-                    // ignore
-                });
-            }
-        } catch (error) {
-            // ignore
-        }
-    }
-
-    function handleWakeLockRelease() {
-        wakeLockSentinel = null;
-        wakeLockRequestInFlight = false;
-
-        if (wakeLockAutoAcquireEnabled && shouldMaintainPlayback() && document.visibilityState === 'visible') {
-            requestWakeLock();
-        }
-    }
-
-    function requestWakeLock() {
-        if (!('wakeLock' in navigator)) {
-            return;
-        }
-
-        if (document.visibilityState !== 'visible') {
-            return;
-        }
-
-        if (!shouldMaintainPlayback()) {
-            return;
-        }
-
-        if (wakeLockSentinel || wakeLockRequestInFlight) {
-            return;
-        }
-
-        wakeLockRequestInFlight = true;
-
-        navigator.wakeLock.request('screen').then(function (sentinel) {
-            wakeLockSentinel = sentinel;
-            wakeLockRequestInFlight = false;
-            wakeLockAutoAcquireEnabled = true;
-            sentinel.addEventListener('release', handleWakeLockRelease);
-        }).catch(function () {
-            wakeLockRequestInFlight = false;
-            wakeLockAutoAcquireEnabled = false;
-        });
-    }
-
-    function syncWakeLockState() {
-        if (shouldMaintainPlayback()) {
-            requestWakeLock();
-        } else {
-            releaseWakeLock();
-        }
-    }
-
-    function setOfflineBannerVisible(isVisible) {
-        const banner = host.querySelector('.ambient-audio-offline');
-        if (!banner) {
-            return;
-        }
-
-        banner.hidden = !isVisible;
-        banner.setAttribute('aria-hidden', String(!isVisible));
-    }
-
-    function syncConnectionState() {
-        const offline = navigator.onLine === false;
-        setOfflineBannerVisible(offline);
-
-        if (offline) {
-            clearRecoveryTimer();
-            recoveryAttemptCount = 0;
-            return;
-        }
-
-        if (pendingPlay || shouldMaintainPlayback()) {
-            schedulePlaybackRecovery(300);
-        }
     }
 
     function setPlayingState(isPlaying, options) {
@@ -1265,38 +1154,31 @@
                         setPlayingState(true);
                         persistPlaybackSnapshot();
                         resetRecoveryState();
-                        requestWakeLock();
                     } else if (event.data === window.YT.PlayerState.ENDED) {
                         persistPlaybackSnapshot();
                         if (handleRepeatEnded()) {
                             setPlayingState(true, { persist: false });
-                            requestWakeLock();
                             resetRecoveryState();
                             return;
                         }
                         if (shouldMaintainPlayback()) {
                             setPlayingState(true, { persist: false });
-                            requestWakeLock();
                             schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
                             return;
                         }
                         resetRecoveryState();
-                        releaseWakeLock();
                         setPlayingState(false);
                     } else if (event.data === window.YT.PlayerState.PAUSED) {
                         persistPlaybackSnapshot();
                         if (shouldMaintainPlayback()) {
                             setPlayingState(true, { persist: false });
-                            requestWakeLock();
                             attemptPlaybackRecovery();
                         } else {
-                            releaseWakeLock();
                             setPlayingState(false);
                         }
                     } else if (event.data === window.YT.PlayerState.CUED || event.data === window.YT.PlayerState.UNSTARTED) {
                         if (shouldMaintainPlayback()) {
                             setPlayingState(true, { persist: false });
-                            requestWakeLock();
                             schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
                         }
                     }
@@ -1330,7 +1212,6 @@
         clearSnapshotInterval();
         clearRecoveryInterval();
         resetRecoveryState();
-        releaseWakeLock();
         watchdogPreviousTime = null;
         watchdogStuckCount = 0;
 
@@ -1365,11 +1246,6 @@
     }
 
     function loadApi() {
-        if (navigator.onLine === false) {
-            setOfflineBannerVisible(true);
-            return;
-        }
-
         if (window.YT && window.YT.Player) {
             createPlayer();
             return;
@@ -1389,13 +1265,6 @@
         script.src = 'https://www.youtube.com/iframe_api';
         script.async = true;
         script.dataset.ambientAudioApi = 'true';
-        script.onerror = function () {
-            apiLoading = false;
-            setOfflineBannerVisible(true);
-            if (script.parentNode) {
-                script.parentNode.removeChild(script);
-            }
-        };
         document.head.appendChild(script);
 
         window.onYouTubeIframeAPIReady = function () {
@@ -1404,13 +1273,6 @@
     }
 
     function playAudio() {
-        if (navigator.onLine === false) {
-            pendingPlay = true;
-            setPlayingState(true);
-            setOfflineBannerVisible(true);
-            return;
-        }
-
         loadApi();
         if (!window.YT || !window.YT.Player) {
             pendingPlay = true;
@@ -1425,7 +1287,6 @@
             try {
                 player.playVideo();
                 setPlayingState(true);
-                requestWakeLock();
                 schedulePlaybackRecovery(RECOVERY_BASE_DELAY_MS);
             } catch (error) {
                 pendingPlay = true;
@@ -1446,7 +1307,6 @@
         }
         pendingPlay = false;
         resetRecoveryState();
-        releaseWakeLock();
         setPlayingState(false);
         persistPlaybackSnapshot();
     }
@@ -1556,40 +1416,6 @@
         if (savedState === 'playing') {
             playAudio();
         }
-
-        window.addEventListener('online', syncConnectionState);
-        window.addEventListener('offline', syncConnectionState);
-        syncConnectionState();
-
-        window.addEventListener('focus', function () {
-            requestWakeLock();
-            if (shouldMaintainPlayback()) {
-                attemptPlaybackRecovery();
-            }
-        });
-
-        window.addEventListener('visibilitychange', function () {
-            if (document.visibilityState === 'visible' && shouldMaintainPlayback()) {
-                requestWakeLock();
-                attemptPlaybackRecovery();
-            }
-            if (document.visibilityState === 'hidden') {
-                releaseWakeLock();
-                persistPlaybackSnapshot();
-                if (shouldMaintainPlayback()) {
-                    attemptPlaybackRecovery();
-                }
-            }
-        });
-
-        window.addEventListener('beforeunload', function () {
-            releaseWakeLock();
-            persistPlaybackSnapshot();
-        });
-
-        window.addEventListener('pagehide', function () {
-            releaseWakeLock();
-        });
     }
 
     if (document.readyState === 'loading') {
